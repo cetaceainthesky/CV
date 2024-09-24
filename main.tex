@@ -1,6 +1,9 @@
 
 \documentclass[letterpaper,11pt]{article}
 
+\usepackage{kotex}
+\usepackage[T1]{fontenc}
+
 % Choose bibliography style for formatting list of publications
 \usepackage[style=ieee,url=false,doi=false,maxbibnames=99,sorting=ydnt,dashed=false]{biblatex}
 \bibliography{papers}
@@ -16,11 +19,13 @@
 
 % Heading
 \headinginline{SEYEON OH}{
-    \faEnvelope: \email{cetaceaintheksy@gmail.com} \\
+    \faEnvelope: \email{syoh5188@gmail.com} \\
     % \faGlobe: \website{dcetin.me} 
-    % \faLinkedin: \linkedin{doruk-cetin} 
-    \faGithub: \github{cetaceainthesky}
+    \faGithub: \github{syoh89} \\
+    \faLinkedin: \linkedin{syoh5188} \\ 
 }
+\newline
+\\
 
 % \headingphoto{SEYEON OH}{
 %     % Website: \website{dcetin.me} \\ 
@@ -30,19 +35,19 @@
 % }{photo.png}
 
 % Page One
-\import{sections/}{education.tex}
-\import{sections/}{experience.tex}
-\import{sections/}{publications.tex}
-
-\pagebreak
-
-% Page Two
-\import{sections/}{teaching.tex}
 \sidebyside
     {\import{sections/}{skills.tex}}
     {\import{sections/}{languages.tex}}
 \import{sections/}{projects.tex}
+\import{sections/}{education.tex}
+
+\pagebreak
+
+% Page Two
 \import{sections/}{awards.tex}
+\import{sections/}{experience.tex}
+\import{sections/}{publications.tex}
 \import{sections/}{volunteering.tex}
+\import{sections/}{teaching.tex}
 
 \end{document}
