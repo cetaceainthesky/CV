@@ -7,14 +7,69 @@
 \usepackage{titlesec}                       % Title formatting
 \usepackage{import}                         % File importing
 \usepackage{multicol}                       % Multiple columns
-\usepackage[usenames,dvipsnames]{xcolor}    % Coloring
+% \usepackage[usenames,dvipsnames]{xcolor}    % Coloring
+\usepackage{xcolor}                         % Coloring for XeLaTeX
 \usepackage{enumitem}                       % List customization
 \usepackage{lastpage}                       % Page numbering
 \usepackage{fancyhdr}                       % Footers
+\usepackage{fontspec}                       % Language for XeLaTeX
+\usepackage{xeCJK} % xeCJK package, which requires the XeLaTeX compiler
 \usepackage[russian,english]{babel}         % Language styles
+\usepackage{kotex}                          % Korean Language for XeLaTeX
 \usepackage{graphicx}                       % Importing graphics
 \usepackage[export]{adjustbox}              % Aligning margins
 \usepackage{moresize}                       % HUGE size
+
+% % Korean
+% add KR - ref : https://www.overleaf.com/learn/latex/Korean
+% Korean font settings
+% \setmainfont{Noto Serif CJK KR}
+\setmainfont{Noto Serif CJK KR}[
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    ItalicFont = *-Regular,
+    BoldItalicFont = *-Bold,
+    SmallCapsFont = *-Regular
+]
+\setsansfont{Noto Sans CJK KR}[
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    ItalicFont = *-Regular,
+    BoldItalicFont = *-Bold,
+    SmallCapsFont = *-Regular
+]
+\setmonofont{Noto Sans Mono CJK KR}[
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    ItalicFont = *-Regular,
+    BoldItalicFont = *-Bold,
+    SmallCapsFont = *-Regular
+]
+
+% CJK settings
+\usepackage{xeCJK}
+\setCJKmainfont{Noto Sans CJK KR}
+\setCJKsansfont{Noto Sans CJK KR}
+\setCJKmonofont{Noto Sans Mono CJK KR}
+
+% 대체 이탤릭 및 소문자 대문자 설정
+\usepackage{realscripts}
+\usepackage{textcase}
+
+% 이탤릭 대체
+\makeatletter
+\def\slantfont{\expandafter\attr@font\expandafter{\f@family}%
+    \fontseries{m}\fontshape{sl}\selectfont}
+\DeclareRobustCommand{\slshape}{%
+    \not@math@alphabet\slshape\relax
+    \slantfont}
+\makeatother
+
+% 소문자 대문자 대체
+\DeclareRobustCommand{\scshape}{%
+    \not@math@alphabet\scshape\relax
+    \fontshape\upshape\selectfont
+    \MakeTextLowercase}
 
 % % Chinese
 % \usepackage{xeCJK}
@@ -45,7 +100,8 @@
 % Define colors
 \definecolor{color-text}{gray}{0.10}    % light black
 \definecolor{color-detail}{gray}{0.40}  % dark gray
-\colorlet{color-title}{\theme}          % black
+\definecolor{color-title}{rgb}{0,0,0}   % black
+% \colorlet{color-title}{\theme}          % black
 
 % Set text color
 \makeatletter
