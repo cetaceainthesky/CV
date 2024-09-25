@@ -28,11 +28,29 @@ jobs:
           texlive-xetex \
           texlive-lang-korean \
           fonts-noto-cjk \
-          fonts-noto-color-emoji \
+          fonts-nanum \
           pkg-config \
           libpng-dev \
           librsvg2-dev
 
+    - name: Download and install Noto Serif CJK KR font
+      run: |
+        mkdir -p ~/.fonts
+        wget -O NotoSerifCJKkr-Regular.otf https://github.com/googlefonts/noto-cjk/raw/main/Serif/OTF/Korean/NotoSerifCJKkr-Regular.otf
+        mv NotoSerifCJKkr-Regular.otf ~/.fonts/
+        fc-cache -fv
+
+    - name: Setup font cache
+      run: |
+        fc-cache -fv
+        fc-list | grep -i 'noto\|nanum'
+
+    - name: Modify simplecv.sty
+      run: |
+        sed -i 's/\\setmainfont{Noto Serif CJK KR}/\\setmainfont{Noto Serif CJK KR}[Path=~\/.fonts\/,Extension=.otf,UprightFont=*-Regular]/g' simplecv.sty
+        echo '\newfontfamily\koreanfont{NanumMyeongjo}[Script=Hangul]' >> simplecv.sty
+        echo '\newfontfamily\koreanfontsf{NanumGothic}[Script=Hangul]' >> simplecv.sty
+        
     - name: Compile LaTeX document
       uses: xu-cheng/latex-action@v2
       with:
@@ -41,6 +59,8 @@ jobs:
         pre_compile: |
           tlmgr update --self
           tlmgr update --all
+          fc-list | grep -i 'noto\|nanum'
+          ls -l ~/.fonts
         post_compile: |
           latexmk -c
 
