@@ -1,0 +1,103 @@
+name: Compile LaTeX and Update README
+
+on:
+  push:
+    branches: 
+      - main
+      - master
+    paths-ignore:
+      - 'pdf/**'
+  pull_request:
+    branches: 
+      - main
+      - master
+    paths-ignore:
+      - 'pdf/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install additional system packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          fonts-noto-cjk \
+          fonts-noto-color-emoji
+
+    - name: Compile LaTeX document
+      uses: xu-cheng/latex-action@v2
+      with:
+        root_file: main.tex
+        latexmk_use_xelatex: true
+        extra_system_packages: |
+          pkg-config
+          libpng-dev
+          librsvg2-dev
+        extra_packages: |
+          fontspec
+          xecjk
+          unicode-math
+          hyperref
+          url
+          biblatex
+          biber
+        pre_compile: |
+          tlmgr update --self
+          tlmgr install babel-korean
+        post_compile: |
+          latexmk -c
+
+    - name: Move and archive PDF
+      run: |
+        mkdir -p pdf
+        current_date=$(date +"%Y%m%d")
+        cp main.pdf "pdf/osy_${current_date}.pdf"
+        cp main.pdf cv.pdf
+
+    - name: Generate PNG preview
+      run: |
+        if [ -f cv.pdf ]; then
+          sudo apt-get install -y poppler-utils imagemagick
+          pdftoppm cv.pdf cv -png -f 1 -singlefile
+          if [ -f cv.png ]; then
+            convert cv.png -resize 50% cv_preview.png
+          fi
+        fi
+
+    - name: Update main README
+      run: |
+        echo "## CV Preview" > README.md
+        if [ -f cv_preview.png ]; then
+          echo "![CV Preview](cv_preview.png)" >> README.md
+        fi
+        echo "" >> README.md
+        echo "## PDF Download" >> README.md
+        echo "[Download Latest CV](cv.pdf)" >> README.md
+
+    - name: Update PDF folder README
+      run: |
+        echo "# CV Archive" > pdf/README.md
+        echo "" >> pdf/README.md
+        echo "이 폴더에는 CV의 아카이브된 버전들이 저장됩니다." >> pdf/README.md
+        echo "" >> pdf/README.md
+        echo "## 아카이브된 PDF 목록" >> pdf/README.md
+        for pdf in pdf/*.pdf; do
+          filename=$(basename "$pdf")
+          echo "- [$filename]($filename)" >> pdf/README.md
+        done
+
+    - name: Commit files
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add pdf README.md cv.pdf cv_preview.png
+        git commit -m "Update CV PDF, preview image, and READMEs" || echo "No changes to commit"
+        
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
