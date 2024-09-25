@@ -15,7 +15,6 @@
 \usepackage{fontspec}                       % Language for XeLaTeX
 \usepackage{xeCJK} % xeCJK package, which requires the XeLaTeX compiler
 \usepackage[russian,english]{babel}         % Language styles
-\usepackage{kotex}                          % Korean Language for XeLaTeX
 \usepackage{graphicx}                       % Importing graphics
 \usepackage[export]{adjustbox}              % Aligning margins
 \usepackage{moresize}                       % HUGE size
@@ -31,20 +30,8 @@
     BoldItalicFont = *-Bold,
     SmallCapsFont = *-Regular
 ]
-\setsansfont{Noto Sans CJK KR}[
-    UprightFont = *-Regular,
-    BoldFont = *-Bold,
-    ItalicFont = *-Regular,
-    BoldItalicFont = *-Bold,
-    SmallCapsFont = *-Regular
-]
-\setmonofont{Noto Sans Mono CJK KR}[
-    UprightFont = *-Regular,
-    BoldFont = *-Bold,
-    ItalicFont = *-Regular,
-    BoldItalicFont = *-Bold,
-    SmallCapsFont = *-Regular
-]
+\setsansfont{Noto Sans CJK KR}
+\setmonofont{Noto Sans Mono CJK KR}
 
 % CJK settings
 \usepackage{xeCJK}
