@@ -20,32 +20,27 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     
-    - name: Install additional system packages
+    - name: Install TeX Live and additional packages
       run: |
         sudo apt-get update
         sudo apt-get install -y \
+          texlive-full \
+          texlive-xetex \
+          texlive-lang-korean \
           fonts-noto-cjk \
           fonts-noto-color-emoji \
           pkg-config \
           libpng-dev \
           librsvg2-dev
-    
+
     - name: Compile LaTeX document
       uses: xu-cheng/latex-action@v2
       with:
         root_file: main.tex
         latexmk_use_xelatex: true
-        extra_packages: |
-          fontspec
-          xecjk
-          unicode-math
-          hyperref
-          url
-          biblatex
-          biber
         pre_compile: |
           tlmgr update --self
-          tlmgr install babel-korean
+          tlmgr update --all
         post_compile: |
           latexmk -c
 
