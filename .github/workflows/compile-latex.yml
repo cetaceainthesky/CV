@@ -1,161 +1,79 @@
-name: Compile LaTeX and Update README
+name: Build LaTeX document
 
 on:
   push:
-    branches: 
-      - main
+    branches:
       - master
-    paths-ignore:
-      - 'pdf/**'
-  pull_request:
-    branches: 
-      - main
-      - master
-    paths-ignore:
-      - 'pdf/**'
 
 jobs:
-  build:
+  build_latex:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     
-    - name: Install TeX Live and additional packages
+    - name: Check environment and install fonts
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          texlive-xetex \
-          texlive-lang-korean \
-          texlive-fonts-recommended \
-          texlive-latex-extra \
-          fonts-noto-cjk \
-          fonts-nanum \
-          pkg-config \
-          libpng-dev \
-          librsvg2-dev
-
-    - name: Download and install required fonts
-      run: |
-        mkdir -p ~/.fonts
-        wget -O NotoSansCJKkr-Regular.otf https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Regular.otf
-        wget -O NotoSansCJKkr-Bold.otf https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansCJKkr-Bold.otf
-        wget -O NotoSerifCJKkr-Regular.otf https://github.com/googlefonts/noto-cjk/raw/main/Serif/OTF/Korean/NotoSerifCJKkr-Regular.otf
-        wget -O NotoSansMonoCJKkr-Regular.otf https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansMonoCJKkr-Regular.otf
-        mv *.otf ~/.fonts/
-        fc-cache -fv
-
-    - name: Setup font cache
-      run: |
-        fc-list | grep -i 'noto\|nanum'
-
-    - name: Modify simplecv.sty
-      run: |
-        sed -i 's/\\usepackage{fontspec}/\\usepackage[no-math]{fontspec}/g' simplecv.sty
-        sed -i 's/\\setmainfont{Noto Serif CJK KR}/\\setmainfont{Noto Serif CJK KR}[Path=~\/.fonts\/,Extension=.otf,UprightFont=*-Regular]/g' simplecv.sty
-        sed -i 's/\\setsansfont{Noto Sans CJK KR}/\\setsansfont{Noto Sans CJK KR}[Path=~\/.fonts\/,Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold]/g' simplecv.sty
-        sed -i 's/\\setmonofont{Noto Sans Mono CJK KR}/\\setmonofont{Noto Sans Mono CJK KR}[Path=~\/.fonts\/,Extension=.otf,UprightFont=*-Regular]/g' simplecv.sty
+        echo "OS: $(uname -s)"
+        echo "Distribution: $(lsb_release -d)"
+        echo "현재 설치된 폰트 관련 패키지:"
+        dpkg -l | grep font
         
+        echo "한국어와 영어를 지원하는 폰트 설치"
+        sudo apt-get update
+        sudo apt-get install -y fonts-noto-cjk fonts-noto-cjk-extra fonts-noto fonts-nanum
+        
+        if [ $? -ne 0 ]; then
+          echo "폰트 설치 중 오류가 발생했습니다." >> error.log
+          exit 1
+        fi
+        
+        echo "설치 후 폰트 관련 패키지:"
+        dpkg -l | grep font
+
+    - name: Prepare font directory
+      run: |
+        mkdir -p "$HOME/.fonts"
+        if [ ! -w "$HOME/.fonts" ]; then
+          echo "권한 문제가 발생했습니다. 권한을 변경합니다."
+          sudo chown -R $(whoami):$(whoami) "$HOME/.fonts"
+          if [ $? -ne 0 ]; then
+            echo "폰트 디렉토리 권한 변경 중 오류가 발생했습니다." >> error.log
+            exit 1
+          fi
+        fi
+
+    - name: Update font cache
+      run: |
+        fc-cache -fv
+        if [ $? -ne 0 ]; then
+          echo "폰트 캐시 업데이트 중 오류가 발생했습니다." >> error.log
+          exit 1
+        fi
+
     - name: Compile LaTeX document
       uses: xu-cheng/latex-action@v2
       with:
         root_file: main.tex
-        latexmk_use_xelatex: true
-        extra_system_packages: "fontconfig"
-        pre_compile: |
-          set -e
-          echo "TeX Live 업데이트 시작..."
-          if ! tlmgr update --self; then
-            echo "TeX Live 자체 업데이트 실패"
-            exit 1
-          fi
-          if ! tlmgr update --all; then
-            echo "TeX Live 전체 업데이트 실패"
-            exit 1
-          fi
-          echo "폰트 목록 확인..."
-          fc-list | grep -i 'noto\|nanum' || echo "Noto 또는 Nanum 폰트를 찾을 수 없습니다."
-          ls -l ~/.fonts || echo "~/.fonts 디렉토리가 존재하지 않거나 접근할 수 없습니다."
-        post_compile: |
-          set -e
-          echo "LaTeX 임시 파일 정리 중..."
-          if ! latexmk -c; then
-            echo "LaTeX 임시 파일 정리 실패"
-            exit 1
-          fi
-      continue-on-error: false
-    
-    - name: Check LaTeX compilation result
-      if: failure()
-      run: |
-        echo "LaTeX 컴파일 실패. 로그 파일을 확인하세요."
-        cat main.log || echo "main.log 파일을 찾을 수 없습니다."
-    
-    - name: Check PDF generation
-      run: |
-        if [ ! -f main.pdf ]; then
-          echo "main.pdf 파일이 생성되지 않았습니다."
-          exit 1
-        fi
+        extra_system_packages: "ko ko-x11 cm-super"
+      continue-on-error: true
+      id: compile
 
-    - name: Move and archive PDF
+    - name: Check compilation result
+      if: steps.compile.outcome == 'failure'
       run: |
-        mkdir -p pdf
-        current_date=$(date +"%Y%m%d")
-        cp main.pdf "pdf/osy_${current_date}.pdf"
-        cp main.pdf cv.pdf
+        echo "LaTeX 문서 컴파일 중 오류가 발생했습니다." >> error.log
+        exit 1
 
-    - name: Generate PNG preview
-      run: |
-        if [ -f cv.pdf ]; then
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils
-          pdftoppm -png -f 1 -singlefile -scale-to 800 cv.pdf cv_preview
-          if [ ! -f cv_preview.png ]; then
-            echo "PNG 미리보기 생성 실패"
-            exit 1
-          fi
-        else
-          echo "cv.pdf 파일을 찾을 수 없습니다"
-          exit 1
-        fi
-
-    - name: Update main README
-      run: |
-        if ! echo "## CV Preview" > README.md; then
-          echo "README.md 파일 생성 실패"
-          exit 1
-        fi
-        if [ -f cv_preview.png ]; then
-          echo "![CV Preview](cv_preview.png)" >> README.md
-        else
-          echo "cv_preview.png 파일이 없습니다."
-          exit 1
-        fi
-        echo "" >> README.md
-        echo "## PDF Download" >> README.md
-        echo "[Download Latest CV](cv.pdf)" >> README.md
-
-    - name: Update PDF folder README
-      run: |
-        echo "# CV Archive" > pdf/README.md
-        echo "" >> pdf/README.md
-        echo "이 폴더에는 CV의 아카이브된 버전들이 저장됩니다." >> pdf/README.md
-        echo "" >> pdf/README.md
-        echo "## 아카이브된 PDF 목록" >> pdf/README.md
-        for pdf in pdf/*.pdf; do
-          filename=$(basename "$pdf")
-          echo "- [$filename]($filename)" >> pdf/README.md
-        done
-
-    - name: Commit files
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add pdf README.md cv.pdf cv_preview.png
-        git commit -am "Update CV PDF, preview image, and READMEs" || echo "No changes to commit"
-        
-    - name: Push changes
-      uses: ad-m/github-push-action@master
+    - name: Upload PDF file
+      if: steps.compile.outcome == 'success'
+      uses: actions/upload-artifact@v2
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
+        name: PDF
+        path: main.pdf
+
+    - name: Upload error log
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: error-log
+        path: error.log
