@@ -24,9 +24,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          texlive-full \
           texlive-xetex \
           texlive-lang-korean \
+          texlive-fonts-recommended \
+          texlive-latex-extra \
           fonts-noto-cjk \
           fonts-nanum \
           pkg-config \
@@ -45,7 +46,6 @@ jobs:
 
     - name: Setup font cache
       run: |
-        fc-cache -fv
         fc-list | grep -i 'noto\|nanum'
 
     - name: Modify simplecv.sty
@@ -62,12 +62,40 @@ jobs:
         latexmk_use_xelatex: true
         extra_system_packages: "fontconfig"
         pre_compile: |
-          tlmgr update --self
-          tlmgr update --all
-          fc-list | grep -i 'noto\|nanum'
-          ls -l ~/.fonts
+          set -e
+          echo "TeX Live 업데이트 시작..."
+          if ! tlmgr update --self; then
+            echo "TeX Live 자체 업데이트 실패"
+            exit 1
+          fi
+          if ! tlmgr update --all; then
+            echo "TeX Live 전체 업데이트 실패"
+            exit 1
+          fi
+          echo "폰트 목록 확인..."
+          fc-list | grep -i 'noto\|nanum' || echo "Noto 또는 Nanum 폰트를 찾을 수 없습니다."
+          ls -l ~/.fonts || echo "~/.fonts 디렉토리가 존재하지 않거나 접근할 수 없습니다."
         post_compile: |
-          latexmk -c
+          set -e
+          echo "LaTeX 임시 파일 정리 중..."
+          if ! latexmk -c; then
+            echo "LaTeX 임시 파일 정리 실패"
+            exit 1
+          fi
+      continue-on-error: false
+    
+    - name: Check LaTeX compilation result
+      if: failure()
+      run: |
+        echo "LaTeX 컴파일 실패. 로그 파일을 확인하세요."
+        cat main.log || echo "main.log 파일을 찾을 수 없습니다."
+    
+    - name: Check PDF generation
+      run: |
+        if [ ! -f main.pdf ]; then
+          echo "main.pdf 파일이 생성되지 않았습니다."
+          exit 1
+        fi
 
     - name: Move and archive PDF
       run: |
@@ -79,19 +107,29 @@ jobs:
     - name: Generate PNG preview
       run: |
         if [ -f cv.pdf ]; then
-          sudo apt-get install -y poppler-utils imagemagick
-          sudo sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml
-          pdftoppm cv.pdf cv -png -f 1 -singlefile
-          if [ -f cv.png ]; then
-            convert cv.png -resize 50% cv_preview.png
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdftoppm -png -f 1 -singlefile -scale-to 800 cv.pdf cv_preview
+          if [ ! -f cv_preview.png ]; then
+            echo "PNG 미리보기 생성 실패"
+            exit 1
           fi
+        else
+          echo "cv.pdf 파일을 찾을 수 없습니다"
+          exit 1
         fi
 
     - name: Update main README
       run: |
-        echo "## CV Preview" > README.md
+        if ! echo "## CV Preview" > README.md; then
+          echo "README.md 파일 생성 실패"
+          exit 1
+        fi
         if [ -f cv_preview.png ]; then
           echo "![CV Preview](cv_preview.png)" >> README.md
+        else
+          echo "cv_preview.png 파일이 없습니다."
+          exit 1
         fi
         echo "" >> README.md
         echo "## PDF Download" >> README.md
@@ -114,7 +152,7 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add pdf README.md cv.pdf cv_preview.png
-        git commit -m "Update CV PDF, preview image, and READMEs" || echo "No changes to commit"
+        git commit -am "Update CV PDF, preview image, and READMEs" || echo "No changes to commit"
         
     - name: Push changes
       uses: ad-m/github-push-action@master
