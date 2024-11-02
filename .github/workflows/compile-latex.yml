@@ -18,10 +18,11 @@ jobs:
           fonts-noto-cjk \
           fonts-noto-cjk-extra \
           fonts-nanum \
+          texlive-full \
           texlive-xetex \
           texlive-lang-korean \
-          texlive-fonts-recommended \
-          texlive-fonts-extra \
+          texlive-bibtex-extra \
+          biber \
           latexmk
         
     - name: Prepare font directory and update font cache
@@ -29,17 +30,34 @@ jobs:
         mkdir -p "$HOME/.fonts"
         sudo fc-cache -fv
 
+    - name: Verify LaTeX packages
+      run: |
+        kpsewhich biblatex.sty || echo "biblatex.sty not found"
+        tlmgr init-usertree
+        sudo tlmgr update --self
+
     - name: Compile LaTeX document with XeLaTeX
       run: |
-        latexmk -xelatex -interaction=nonstopmode -file-line-error main.tex
+        xelatex -no-pdf -interaction=nonstopmode main.tex
+        biber main
+        xelatex -no-pdf -interaction=nonstopmode main.tex
+        xelatex -interaction=nonstopmode main.tex 2>&1 | tee compile.log
       continue-on-error: true
       id: compile
 
-    - name: Check compilation error
+    - name: Check compilation result and create detailed log
       if: steps.compile.outcome == 'failure'
       run: |
-        echo "XeLaTeX 문서 컴파일 중 오류가 발생했습니다." >> error.log
-        cat error.log
+        echo "XeLaTeX 컴파일 오류 상세 내역:" > error.log
+        echo "----------------------------------------" >> error.log
+        echo "1. 컴파일 로그:" >> error.log
+        cat compile.log >> error.log
+        echo "----------------------------------------" >> error.log
+        echo "2. 시스템 정보:" >> error.log
+        tex --version >> error.log
+        echo "----------------------------------------" >> error.log
+        echo "3. 설치된 LaTeX 패키지:" >> error.log
+        tlmgr list --only-installed >> error.log
         exit 1
 
     - name: Upload PDF file
@@ -49,9 +67,12 @@ jobs:
         name: PDF
         path: main.pdf
 
-    - name: Upload error log
-      if: failure()
+    - name: Upload compilation logs
+      if: always()
       uses: actions/upload-artifact@v3
       with:
-        name: error-log
-        path: error.log
+        name: latex-logs
+        path: |
+          main.log
+          compile.log
+          error.log
