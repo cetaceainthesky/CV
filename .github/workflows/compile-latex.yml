@@ -33,8 +33,6 @@ jobs:
     - name: Verify LaTeX packages
       run: |
         kpsewhich biblatex.sty || echo "biblatex.sty not found"
-        tlmgr init-usertree
-        sudo tlmgr update --self
 
     - name: Compile LaTeX document with XeLaTeX
       run: |
